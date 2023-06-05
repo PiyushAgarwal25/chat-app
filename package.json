@@ -1,0 +1,18 @@
+{
+  "name": "udemy-sockets",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "env-cmd -f config/dev.env nodemon src/index.js -e hbs,js,css,env,json",
+    "start": "env-cmd -f config/dev.env node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "env-cmd": "^10.1.0",
+    "express": "^4.18.2",
+    "socket.io": "^4.6.2"
+  }
+}
