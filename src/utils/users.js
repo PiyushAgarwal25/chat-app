@@ -22,7 +22,9 @@ const addUser = (obj)=>{
 
     // validate username
     if(existingUser){
-        return 'Username is in use!';
+        return {
+            error:"Username is in use!"
+        }
     }
 
     const user = {id,username,room};

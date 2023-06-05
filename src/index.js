@@ -4,6 +4,7 @@ const path = require("path");
 const socketio = require("socket.io");
 const Filter = require("bad-words");
 const {generateMessage,generateLocMessage} = require('./utils/messages.js');
+const {getUser,removeUser,addUser,getUsersInRoom} = require("./utils/users.js");
 
 const port = process.env.PORT ||3000;
 const publicDir = path.join(__dirname,"../public")
@@ -17,7 +18,26 @@ const io = socketio(server);
 io.on("connection",(socket)=>{
     console.log("New WebSocket connection");
 
-    socket.broadcast.emit("message",generateMessage("A new user has joined the chat!"));
+    socket.on("join",(obj,callback)=>{
+        const {username,room} = obj;
+        const {error,user} = addUser({
+            id:socket.id,username,room
+        });
+
+        if(error){
+            return callback(error);
+        }
+
+        socket.join(user.room);
+        socket.emit('message',generateMessage('Admin','Welcome!'));
+        socket.broadcast.to(user.room).emit('message',generateMessage('Admin',`${user.username} has joined!`));
+        io.to(user.room).emit("roomData",{
+            room: user.room,
+            users:getUsersInRoom(user.room)
+        });
+
+        callback();
+    });
 
     socket.on("sendMessage",(message,callback)=>{
         const filter = new Filter();
@@ -26,25 +46,33 @@ io.on("connection",(socket)=>{
             return callback("Profane is not allowed!");
         }
 
-        io.to('10').emit("message",generateMessage(message));
+        let user = getUser(socket.id);
+
+        if(!user){
+            return callback("User with id not present");
+        }
+
+        io.to(user.room).emit("message",generateMessage(user.username,message));
         callback();
     });
 
-    socket.on("join",obj=>{
-        const {username,room} = obj;
-        socket.join(room);
-
-        socket.emit('message',generateMessage('Welcome!'));
-        socket.broadcast.to(room).emit('message',generateMessage(`${username} has joined!`));
-    });
     
     socket.on("sendLocation",(position,callback)=>{
-        io.emit("locationMessage",generateLocMessage(`https://google.com/maps/?=${position.latitude},${position.longitude}`));
+        let user = getUser(socket.id);
+        io.to(user.room).emit("locationMessage",generateLocMessage(user.username,`https://google.com/maps/?=${position.latitude},${position.longitude}`));
         callback();
     });
 
     socket.on("disconnect",()=>{
-        io.emit("message",generateMessage("A user has left the chat!"));
+        const user = removeUser(socket.id);
+
+        if(user){
+            io.to(user.room).emit("message",generateMessage('Admin',`${user.username} has left the chat!`));
+            io.to(user.room).emit("roomData",{
+                room: user.room,
+                users:getUsersInRoom(user.room)
+            })
+        };
     });
 
 });

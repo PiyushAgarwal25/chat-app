@@ -10,30 +10,69 @@ let messages = document.querySelector("#messages");
 // templates
 const msgtemplate = document.querySelector("#message-template").innerHTML;
 const locmsgtemplate = document.querySelector('#locMessage-template').innerHTML;
+const sidebarTemplate = document.querySelector('#sidebar-template').innerHTML;
 
 // options
 const {username, room} = Qs.parse(location.search,{ignoreQueryPrefix:true});
 
+const autoScroll = () =>{
+
+    // New message element
+    const newMessage = messages.lastElementChild;
+
+    //height of the new message
+    const newMessageStyles = getComputedStyle(newMessage);
+    const newMessageMargin = parseInt(newMessageStyles.marginBottom);
+    const newMessageHeight = newMessage.offsetHeight+newMessageMargin;
+
+    // visible height 
+    const visibleHeight = messages.offsetHeight;
+
+    // height of messages container
+    const containerHeight = messages.scrollHeight;
+
+    // how far have I scrolled ??
+    const scrollOffset = messages.scrollTop + visibleHeight;
+
+    if(containerHeight-newMessageHeight<=scrollOffset){
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+}
+
 socket.on("message",obj=>{
-    let {message,createdAt} = obj;
+    let {message,createdAt,username} = obj;
     console.log(message);
     const html = Mustache.render(msgtemplate,{
+        username,
         message,
         createdAt:moment(createdAt).format('h:mm a')
     });
     messages.insertAdjacentHTML("beforeend",html);
+    autoScroll();
 });
 
 socket.on("locationMessage",obj=>{
-    let {url,createdAt} = obj;
+    let {url,createdAt,username} = obj;
     console.log(url);
     const html = Mustache.render(locmsgtemplate,{
+        username,
         url,
         createdAt:moment(createdAt).format('h:mm a')
     });
     messages.insertAdjacentHTML("beforeend",html);
+    autoScroll();
 });
 
+
+socket.on('roomData',({room,users})=>{
+    console.log(room,users);
+    const html = Mustache.render(sidebarTemplate,{
+        room,
+        users
+    });
+    document.querySelector("#sidebar").innerHTML = html
+})
 
 // when we will submit the form we will emit message using sendMessage event
 form.addEventListener("submit",(e)=>{
@@ -73,4 +112,11 @@ locBtn.addEventListener("click",()=>{
 
 });
 
-socket.emit("join",{username,room});
+socket.emit("join",{username,room},(error)=>{
+    if(error){
+        alert(error);
+        location.href = "/";
+    }
+});
+
+
